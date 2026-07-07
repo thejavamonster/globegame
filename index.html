@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Globe Guess</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+    <script src="data/world-data.js"></script>
+    <script defer src="app.js"></script>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <div class="top-control">
+          <label class="input-label" for="modeSelect">Mode</label>
+          <select id="modeSelect">
+            <option value="limited" selected>12 countries</option>
+            <option value="all">Every country</option>
+          </select>
+        </div>
+        <div class="hud">
+          <div class="stat"><span class="stat-label">Round</span><span class="stat-value" id="roundLabel">1 / 12</span></div>
+          <div class="stat"><span class="stat-label">Right</span><span class="stat-value" id="scoreLabel">0</span></div>
+          <div class="stat"><span class="stat-label">Wrong</span><span class="stat-value" id="wrongLabel">0</span></div>
+        </div>
+      </section>
+
+      <section class="game">
+        <div class="globe-panel">
+            <div class="globe-frame">
+                <svg id="globe" viewBox="0 0 760 760"></svg>
+            </div>
+        </div>
+
+        <aside class="history-panel">
+            <h3>Guesses</h3>
+            <div id="guessHistory"></div>
+        </aside>
+
+        <div class="control-panel">          <div class="feedback" id="feedbackText">.</div>
+          <div class="input-row">
+            <input id="guessInput" type="text" autocomplete="off" spellcheck="false" placeholder="Type the country name" />
+            <button id="submitButton" type="button">Check</button>
+          </div>
+        </div>
+
+        
+      </section>
+    </main>
+  </body>
+</html>
