@@ -44,15 +44,15 @@ let dragStart = null;
 let dragStartRotation = null;
 
 const aliasMap = new Map([
-  ["united states of america", "united states of america"],
-  ["united states", "united states of america"],
-  ["usa", "united states of america"],
-  ["us", "united states of america"],
-  ["america", "united states of america"],
-  ["united kingdom", "united kingdom"],
-  ["uk", "united kingdom"],
-  ["great britain", "united kingdom"],
-  ["britain", "united kingdom"],
+  ["united states of america", "USA"],
+  ["united states", "USA"],
+  ["usa", "USA"],
+  ["us", "USA"],
+  ["america", "USA"],
+  ["united kingdom", "England"],
+  ["uk", "England"],
+  ["great britain", "England"],
+  ["britain", "England"],
   ["russia", "russian federation"],
   ["ivory coast", "cote d ivoire"],
   ["cote divoire", "cote d ivoire"],
@@ -74,7 +74,8 @@ const aliasMap = new Map([
   ["venezuela", "venezuela bolivarian republic of"],
   ["palestine", "palestine state of"],
   ["czechia", "czech republic"],
-  ["eswatini", "swaziland"]
+  ["eswatini", "swaziland"],
+  ["bosnia", "bosnia and herzegovina"]
 ]);
 
 function countryKey(country) {
