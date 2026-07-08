@@ -13,6 +13,8 @@ const elements = {
   guessInput: document.getElementById("guessInput"),
   submitButton: document.getElementById("submitButton"),
   history: document.getElementById("guessHistory"),
+  flagImage: document.getElementById("flagImage"),
+  gameTypeSelect: document.getElementById("gameTypeSelect")
 };
 
 const width = 760;
@@ -42,6 +44,7 @@ let currentRotation = [10, -10, 0];
 let isDragging = false;
 let dragStart = null;
 let dragStartRotation = null;
+let gameType = "country";
 
 const aliasMap = new Map([
   ["united states of america", "USA"],
@@ -90,6 +93,11 @@ function buildRoundOrder() {
 }
 
 function fitGlobe() {
+
+  if (gameType === "flag") {
+    return;
+  }
+  
   const frame = elements.globe.closest(".globe-frame");
   if (!frame) {
     return;
@@ -133,6 +141,8 @@ async function init() {
         ),
       }))
       .filter((country) => country.name && country.name !== "Antarctica");
+
+      checkMissingFlags();
 
     roundOrder = buildRoundOrder();
     updateHud();
@@ -184,6 +194,25 @@ function wireControls() {
       handleSubmit();
     }
   });
+  elements.gameTypeSelect.addEventListener("change", () => {
+    gameType = elements.gameTypeSelect.value;
+
+    
+    restartGame();
+  });
+}
+
+function showFlag(country) {
+
+  const code = FLAG_CODES[country.normalizedName];
+
+  if (!code) {
+    console.warn("Missing flag:", country.name);
+    return;
+  }
+
+  elements.flagImage.src =
+    `https://flagcdn.com/w320/${code}.png`;
 }
 
 function setupGlobeInteractions() {
@@ -245,6 +274,13 @@ function restartGame() {
   updateHud();
   elements.feedbackText.textContent = "‎ ";
   elements.feedbackText.className = "feedback";
+  if (gameType === "flag") {
+    elements.globe.style.display = "none";
+    elements.flagImage.hidden = false;
+  } else {
+    elements.globe.style.display = "block";
+    elements.flagImage.hidden = true;
+  }
   startRound();
 }
 
@@ -265,10 +301,24 @@ function startRound() {
   elements.guessInput.focus();
   isAnimating = true;
 
-  spinToCountry(currentTarget, () => {
+  if (gameType === "flag") {
+
+    elements.globe.style.display = "none";
+    elements.flagImage.hidden = false;
+
+    showFlag(currentTarget);
+
     isAnimating = false;
-    drawGlobe();
-  });
+
+  } else {
+    elements.globe.style.display = "block";
+    elements.flagImage.hidden = true;
+    spinToCountry(currentTarget, () => {
+      isAnimating = false;
+      drawGlobe();
+    });
+
+  }
 }
 
 function handleSubmit() {
@@ -335,27 +385,50 @@ function addHistory(guess, country, correct) {
     row.className =
         "history-entry " + (correct ? "correct" : "wrong");
 
-    // Create a tiny projection that fits the country's shape
-    const miniProjection = d3
-        .geoMercator()
-        .fitSize([40, 40], country);
 
-    const miniPath = d3.geoPath(miniProjection);
+    let iconHTML;
 
-    row.innerHTML = `
+
+    if (gameType === "flag") {
+
+        const code = FLAG_CODES[country.normalizedName];
+
+        iconHTML = `
+          <img
+            class="history-flag"
+            src="https://flagcdn.com/w160/${code}.png">
+        `;
+
+    } else {
+
+        const miniProjection = d3
+            .geoMercator()
+            .fitSize([40,40], country);
+
+        const miniPath = d3.geoPath(miniProjection);
+
+
+        iconHTML = `
         <svg
-            class="history-icon"
-            width="40"
-            height="40"
-            viewBox="0 0 40 40">
+          class="history-icon"
+          width="40"
+          height="40"
+          viewBox="0 0 40 40">
 
-            <path
-                d="${miniPath(country)}"
-                fill="none"
-                stroke="white"
-                stroke-width="1.2"/>
+          <path
+            d="${miniPath(country)}"
+            fill="none"
+            stroke="white"
+            stroke-width="1.2"/>
 
         </svg>
+        `;
+    }
+
+
+    row.innerHTML = `
+
+        ${iconHTML}
 
         <div class="history-text">
             <div><strong>Guess:</strong> ${guess}</div>
@@ -365,12 +438,19 @@ function addHistory(guess, country, correct) {
         <div class="history-result">
             ${correct ? "✓" : "✗"}
         </div>
+
     `;
+
 
     elements.history.prepend(row);
 
 }
 function drawGlobe(resultState = "neutral") {
+
+  if (gameType === "flag") {
+    return;
+  } 
+
   projection.rotate(currentRotation);
   sphereLayer.attr("d", path);
   globeGroup.selectAll("path").filter(function () {
@@ -472,4 +552,16 @@ function isCorrectGuess(guess, normalizedTarget) {
   const collapsedGuess = mappedGuess.replace(/\b(the|republic|democratic|people s|peoples|state|states|federation|of)\b/g, "").replace(/\s+/g, " ").trim();
   const collapsedTarget = normalizedTarget.replace(/\b(the|republic|democratic|people s|peoples|state|states|federation|of)\b/g, "").replace(/\s+/g, " ").trim();
   return collapsedGuess === collapsedTarget;
+}
+
+
+function checkMissingFlags() {
+
+  const missing = countries
+    .filter(country => !FLAG_CODES[country.normalizedName])
+    .map(country => country.name)
+    .sort();
+
+  console.log("Missing flags:", missing.length);
+  console.table(missing);
 }

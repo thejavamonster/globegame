@@ -247,6 +247,17 @@ button {
 .history-panel::-webkit-scrollbar-thumb:hover{
     background:#5b7598;
 }
+#flagImage {
+    max-width:70%;
+    max-height:70%;
+    object-fit:contain;
+}
+
+.history-flag {
+    width:40px;
+    height:28px;
+    object-fit:cover;
+}
 
 @media (max-width: 640px) {
   .shell {
