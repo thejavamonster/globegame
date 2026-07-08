@@ -462,7 +462,7 @@ function isCorrectGuess(guess, normalizedTarget) {
     return true;
   }
 
-  const mappedGuess = aliasMap.get(guess) || guess;
+  const mappedGuess = normalizeName(aliasMap.get(guess) || guess);
   if (mappedGuess === normalizedTarget) {
     return true;
   }
