@@ -75,7 +75,9 @@ const aliasMap = new Map([
   ["palestine", "palestine state of"],
   ["czechia", "czech republic"],
   ["eswatini", "swaziland"],
-  ["bosnia", "bosnia and herzegovina"]
+  ["bosnia", "bosnia and herzegovina"],
+  ["turkiye", "turkey"],
+  ["timor-leste", "east timor"]
 ]);
 
 function countryKey(country) {
