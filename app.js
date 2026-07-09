@@ -14,7 +14,11 @@ const elements = {
   submitButton: document.getElementById("submitButton"),
   history: document.getElementById("guessHistory"),
   flagImage: document.getElementById("flagImage"),
-  gameTypeSelect: document.getElementById("gameTypeSelect")
+  gameTypeSelect: document.getElementById("gameTypeSelect"),
+  reviewModal: document.getElementById("reviewModal"),
+  reviewScoreText: document.getElementById("reviewScoreText"),
+  playAgainButton: document.getElementById("playAgainButton"),
+  reviewButton: document.getElementById("reviewButton")
 };
 
 const width = 760;
@@ -45,6 +49,9 @@ let isDragging = false;
 let dragStart = null;
 let dragStartRotation = null;
 let gameType = "country";
+let reviewMode = false;
+let reviewSelectedCountry = null;
+let guessesByCountry = new Map();
 
 const aliasMap = new Map([
   ["united states of america", "USA"],
@@ -200,6 +207,16 @@ function wireControls() {
     
     restartGame();
   });
+  elements.playAgainButton.addEventListener("click", () => {
+    elements.reviewModal.classList.add("hidden");
+    reviewMode = false;
+    restartGame();
+  });
+
+  elements.reviewButton.addEventListener("click", () => {
+    elements.reviewModal.classList.add("hidden");
+    enterReviewMode();
+  });
 }
 
 function showFlag(country) {
@@ -230,6 +247,27 @@ function setupGlobeInteractions() {
       dragStartRotation = projection.rotate();
       event.currentTarget.setPointerCapture?.(event.pointerId);
       event.preventDefault();
+    })
+    .on("click", (event) => {
+      if (!reviewMode) {
+        return;
+      }
+
+      const [x, y] = d3.pointer(event, elements.globe);
+
+      const coordinates = projection.invert([x, y]);
+
+      if (!coordinates) {
+        return;
+      }
+
+      const clickedCountry = countries.find(country =>
+        d3.geoContains(country, coordinates)
+      );
+
+      if (clickedCountry) {
+        showReviewCountry(clickedCountry);
+      }
     })
     .on("pointermove", (event) => {
       if (!isDragging || !dragStart || !dragStartRotation) {
@@ -264,6 +302,7 @@ function restartGame() {
   streakCount = 0;
   currentTarget = null;
   resultByCountry = new Map();
+  guessesByCountry = new Map();
   gameFinished = false;
   isAnimating = false;
   elements.guessInput.disabled = false;
@@ -321,6 +360,105 @@ function startRound() {
   }
 }
 
+function enterReviewMode() {
+  reviewMode = true;
+  gameFinished = true;
+
+  elements.guessInput.disabled = true;
+  elements.submitButton.disabled = true;
+
+  elements.globe.style.display = "block";
+  elements.flagImage.hidden = true;
+
+  currentTarget = null;
+
+  projection.rotate(currentRotation);
+
+  drawGlobe();
+
+  elements.history.innerHTML = `
+    <h3>Review</h3>
+    <p>Click a country to inspect your answer.</p>
+  `;
+}
+
+
+function showReviewCountry(country) {
+  const key = countryKey(country);
+  const result = resultByCountry.get(key);
+
+  if (!result) {
+    return;
+  }
+
+  let iconHTML;
+
+  if (gameType === "flag") {
+    const code = FLAG_CODES[country.normalizedName];
+
+    iconHTML = `
+      <img class="history-flag"
+      src="https://flagcdn.com/w320/${code}.png">
+    `;
+  } else {
+    const miniProjection = d3.geoMercator()
+      .fitSize([80,80], country);
+
+    const miniPath = d3.geoPath(miniProjection);
+
+    iconHTML = `
+      <svg width="80" height="80" viewBox="0 0 80 80">
+        <path
+        d="${miniPath(country)}"
+        fill="none"
+        stroke="white"
+        stroke-width="2"/>
+      </svg>
+    `;
+  }
+
+  elements.history.innerHTML = `
+    <h3>Review</h3>
+
+    <div class="review-country-card">
+
+      <div class="review-image">
+        ${iconHTML}
+      </div>
+
+      <div class="review-info">
+        <div>
+          <strong>Answer:</strong>
+          ${country.name}
+        </div>
+
+        <div>
+          <strong>Your guess:</strong>
+          ${guessesByCountry.get(key)}
+        </div>
+      </div>
+
+      <div class="review-result ${result}">
+        ${result === "correct" ? "✓ Correct" : "✗ Wrong"}
+      </div>
+
+    </div>
+  `;
+}
+
+function findGuessForCountry(country) {
+  const entries = [...elements.history.children];
+
+  for (const entry of entries) {
+    if (entry.textContent.includes(country.name)) {
+      const match = entry.textContent.match(/Guess:\s*(.*)/);
+      return match ? match[1] : "Unknown";
+    }
+  }
+
+  return "Unknown";
+}
+
 function handleSubmit() {
   if (gameFinished || isAnimating || !currentTarget) {
     return;
@@ -346,6 +484,10 @@ function handleSubmit() {
   }
 
   resultByCountry.set(countryKey(currentTarget), guessedCorrectly ? "correct" : "wrong");
+  guessesByCountry.set(
+    countryKey(currentTarget),
+    elements.guessInput.value.trim()
+  );
     addHistory(
         elements.guessInput.value.trim(),
         currentTarget,
@@ -369,8 +511,11 @@ function finishGame() {
   gameFinished = true;
   elements.guessInput.disabled = true;
   elements.submitButton.disabled = true;
-  elements.feedbackText.textContent = `Finished. ${correctCount} right, ${wrongCount} wrong.`;
-  elements.feedbackText.className = "feedback";
+
+  elements.reviewScoreText.textContent =
+    `${correctCount} right, ${wrongCount} wrong.`;
+
+  elements.reviewModal.classList.remove("hidden");
 }
 
 function updateHud() {
@@ -447,7 +592,7 @@ function addHistory(guess, country, correct) {
 }
 function drawGlobe(resultState = "neutral") {
 
-  if (gameType === "flag") {
+  if (gameType === "flag" && !reviewMode ) {
     return;
   } 
 
@@ -491,6 +636,13 @@ function drawGlobe(resultState = "neutral") {
     })
     .attr("opacity", (d) => (resultByCountry.has(countryKey(d)) || (currentTarget && countryKey(d) === countryKey(currentTarget)) ? 1 : 0.92));
 
+  if (reviewMode) {
+    landLayer.selectAll(".globe-country")
+      .style("cursor", "pointer")
+      .on("click", function(event, country) {
+        showReviewCountry(country);
+      });
+  }
   outlineLayer.attr("d", path({ type: "Sphere" }));
 }
 

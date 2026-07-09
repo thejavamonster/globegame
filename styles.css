@@ -258,7 +258,87 @@ button {
     height:28px;
     object-fit:cover;
 }
+.hidden {
+  display: none !important;
+}
 
+.review-modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.45);
+  z-index: 10;
+}
+
+.review-box {
+  background: var(--bg);
+  border: 1px solid var(--panel-edge);
+  padding: 28px;
+  text-align: center;
+  width: min(360px, calc(100vw - 32px));
+}
+
+.review-box h2 {
+  margin-top: 0;
+}
+
+.review-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.review-buttons button {
+  padding: 12px 18px;
+}
+
+.review-country-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.review-image {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.review-image svg {
+  width: 160px;
+  height: 160px;
+}
+
+.review-image img {
+  width: 240px;
+  height: 160px;
+  object-fit: contain;
+}
+
+.review-info {
+  width: 100%;
+  font-size: 0.95rem;
+  line-height: 1.8;
+  text-align: left;
+}
+
+.review-result {
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.review-result.correct {
+  color: var(--good);
+}
+
+.review-result.wrong {
+  color: var(--bad);
+}
 @media (max-width: 640px) {
   .shell {
     width: min(100vw - 12px, 1280px);
