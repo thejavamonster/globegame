@@ -17,6 +17,9 @@
   <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
   <script src="data/world-data.js"></script>
   <script src="data/flag-codes.js"></script>
+  <script src="data/regions.js"></script>
+  <script src="data/custom-regions.js"></script>
+
   <script defer src="app.js"></script>
 </head>
 
@@ -48,6 +51,29 @@
           <option value="all">
             Every country
           </option>
+        </select>
+
+        <label class="input-label" for="regionSelect">Region</label>
+
+        <select id="regionSelect">
+          <option value="world" selected>World</option>
+
+          <optgroup label="Continents">
+            <option value="north-america">North America</option>
+            <option value="south-america">South America</option>
+            <option value="europe">Europe</option>
+            <option value="asia">Asia</option>
+            <option value="africa">Africa</option>
+            <option value="oceania">Oceania</option>
+          </optgroup>
+
+          <optgroup label="Regions">
+            <option value="middle-east">Middle East</option>
+            <option value="subsaharan-africa">Sub-Saharan Africa</option>
+            <option value="western-europe">Western Europe</option>
+            <option value="eastern-europe">Eastern Europe</option>
+            <option value="southern-asia">Southern Asia</option>
+          </optgroup>
         </select>
 
       </div>

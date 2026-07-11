@@ -18,7 +18,8 @@ const elements = {
   reviewModal: document.getElementById("reviewModal"),
   reviewScoreText: document.getElementById("reviewScoreText"),
   playAgainButton: document.getElementById("playAgainButton"),
-  reviewButton: document.getElementById("reviewButton")
+  reviewButton: document.getElementById("reviewButton"),
+  regionSelect: document.getElementById("regionSelect")
 };
 
 const width = 760;
@@ -52,6 +53,7 @@ let gameType = "country";
 let reviewMode = false;
 let reviewSelectedCountry = null;
 let guessesByCountry = new Map();
+let COUNTRY_TO_REGIONS = new Map();
 
 const aliasMap = new Map([
   ["united states of america", "USA"],
@@ -95,8 +97,22 @@ function countryKey(country) {
 }
 
 function buildRoundOrder() {
-  const allCountries = d3.shuffle(countries);
-  return elements.modeSelect.value === "all" ? allCountries : allCountries.slice(0, Math.min(ROUND_COUNT, allCountries.length));
+
+    let filtered = countries;
+    const region = elements.regionSelect.value;
+    if (region !== "world") {
+        const allowed = new Set(CUSTOM_REGIONS[region]);
+        filtered = countries.filter(country =>
+            allowed.has(country.id)
+        );
+    }
+    const allCountries = d3.shuffle(filtered);
+    return elements.modeSelect.value === "all"
+        ? allCountries
+        : allCountries.slice(
+            0,
+            Math.min(ROUND_COUNT, allCountries.length)
+        );
 }
 
 function fitGlobe() {
@@ -125,6 +141,31 @@ async function init() {
 
   try {
     const world = window.WORLD_GEOJSON || await d3.json(WORLD_GEOJSON_URL);
+    const regionData = await d3.json("./data/country-regions.json");
+    COUNTRY_TO_REGIONS = new Map();
+
+    for (const country of regionData) {
+
+        const regions = [];
+
+        if (country.region)
+            regions.push(normalizeName(country.region));
+
+        if (country["sub-region"])
+            regions.push(normalizeName(country["sub-region"]));
+
+        if (country["intermediate-region"])
+            regions.push(normalizeName(country["intermediate-region"]));
+
+        COUNTRY_TO_REGIONS.set(
+            country["alpha-3"],
+            regions
+        );
+    }
+    COUNTRY_TO_REGIONS.set("OSA", [
+        "europe",
+        "southern europe"
+    ]);
 
     countries = world.features
       .map((feature) => ({
@@ -196,6 +237,7 @@ function buildScene() {
 function wireControls() {
   elements.submitButton.addEventListener("click", handleSubmit);
   elements.modeSelect.addEventListener("change", restartGame);
+  elements.regionSelect.addEventListener("change", restartGame);
   elements.guessInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       handleSubmit();
