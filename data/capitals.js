@@ -10,7 +10,7 @@ const CAPITALS = {
   "azerbaijan": { name: "Baku", lat: 40.3777, lon: 49.892 },
   "bangladesh": { name: "Dhaka", lat: 23.7104, lon: 90.4074 },
   "belarus": { name: "Minsk", lat: 53.9, lon: 27.5667 },
-  "belgium": { name: "Bruxelles-Brussel", lat: 50.8467, lon: 4.3499 },
+  "belgium": { name: "Brussels", lat: 50.8467, lon: 4.3499 },
   "belize": { name: "Belmopan", lat: 17.25, lon: -88.7667 },
   "benin": { name: "Cotonou", lat: 6.3654, lon: 2.4183 },
   "bhutan": { name: "Thimphu", lat: 27.4661, lon: 89.6419 },
