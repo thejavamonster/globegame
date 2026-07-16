@@ -274,6 +274,71 @@ function showFlag(country) {
     `https://flagcdn.com/w320/${code}.png`;
 }
 
+function showCapital(country) {
+
+  const capital = CAPITALS[country.normalizedName];
+
+  if (!capital) {
+    console.warn("Missing capital:", country.name);
+    return;
+  }
+
+  // Hide the flag
+  elements.flagImage.hidden = true;
+
+  // Show the SVG
+  elements.globe.style.display = "block";
+
+  // Clear everything currently inside the SVG
+  elements.globe.innerHTML = "";
+
+  const svg = d3.select(elements.globe);
+
+  // Country name
+  svg.append("text")
+    .attr("x", width / 2)
+    .attr("y", 48)
+    .attr("text-anchor", "middle")
+    .attr("fill", "white")
+    .attr("font-size", 28)
+    .attr("font-weight", 700)
+    .text(country.name);
+
+  const projection = d3.geoMercator()
+    .fitSize([520, 520], country);
+
+  const path = d3.geoPath(projection);
+
+  // Center the outline
+  const g = svg.append("g")
+    .attr("transform", "translate(120,110)");
+
+  g.append("path")
+    .datum(country)
+    .attr("d", path)
+    .attr("fill", "none")
+    .attr("stroke", "white")
+    .attr("stroke-width", 2);
+
+  const p = projection([
+    capital.lon,
+    capital.lat
+  ]);
+
+  if (p) {
+
+    g.append("text")
+      .attr("x", p[0])
+      .attr("y", p[1] + 8)
+      .attr("text-anchor", "middle")
+      .attr("fill", "#ffd700")
+      .attr("font-size", 32)
+      .text("★");
+
+  }
+
+}
+
 function setupGlobeInteractions() {
   d3.select(elements.globe)
     .on("wheel", (event) => {
@@ -374,15 +439,33 @@ function startRound() {
   }
 
   currentTarget = roundOrder[currentRoundIndex];
+
   fitGlobe();
   updateHud();
+
   elements.feedbackText.textContent = "‎ ";
   elements.feedbackText.className = "feedback";
+
   elements.guessInput.value = "";
   elements.guessInput.focus();
+
   isAnimating = true;
 
-  if (gameType === "flag") {
+  if (gameType === "country") {
+
+    elements.globe.style.display = "block";
+    elements.flagImage.hidden = true;
+
+    buildScene();
+
+    spinToCountry(currentTarget, () => {
+      isAnimating = false;
+      drawGlobe();
+    });
+
+  }
+
+  else if (gameType === "flag") {
 
     elements.globe.style.display = "none";
     elements.flagImage.hidden = false;
@@ -391,26 +474,32 @@ function startRound() {
 
     isAnimating = false;
 
-  } else {
-    elements.globe.style.display = "block";
-    elements.flagImage.hidden = true;
-    spinToCountry(currentTarget, () => {
-      isAnimating = false;
-      drawGlobe();
-    });
+  }
+
+  else if (gameType === "capital") {
+
+    showCapital(currentTarget);
+
+    isAnimating = false;
 
   }
-}
 
+}
 function enterReviewMode() {
+
   reviewMode = true;
   gameFinished = true;
 
   elements.guessInput.disabled = true;
   elements.submitButton.disabled = true;
 
+  // Always review on the globe
   elements.globe.style.display = "block";
   elements.flagImage.hidden = true;
+
+  // If we were in Capitals mode, the SVG currently contains an
+  // outline + star instead of the globe, so rebuild the globe.
+  buildScene();
 
   currentTarget = null;
 
@@ -418,14 +507,16 @@ function enterReviewMode() {
 
   drawGlobe();
 
+  setupReviewInteraction();
+
   elements.history.innerHTML = `
     <h3>Review</h3>
     <p>Click a country to inspect your answer.</p>
   `;
 }
 
-
 function showReviewCountry(country) {
+
   const key = countryKey(country);
   const result = resultByCountry.get(key);
 
@@ -434,30 +525,80 @@ function showReviewCountry(country) {
   }
 
   let iconHTML;
+  let answerText;
 
   if (gameType === "flag") {
+
     const code = FLAG_CODES[country.normalizedName];
 
     iconHTML = `
-      <img class="history-flag"
+      <img class="history-flag review-flag"
       src="https://flagcdn.com/w320/${code}.png">
     `;
-  } else {
-    const miniProjection = d3.geoMercator()
-      .fitSize([80,80], country);
 
-    const miniPath = d3.geoPath(miniProjection);
+    answerText = country.name;
+
+  } else {
+
+    const projection = d3.geoMercator()
+      .fitSize([140,140], country);
+
+    const reviewPath = d3.geoPath(projection);
+
+    let star = "";
+
+    if (gameType === "capital") {
+
+      const capital = CAPITALS[country.normalizedName];
+
+      answerText = capital ? capital.name : "Unknown";
+
+      if (capital) {
+
+        const p = projection([capital.lon, capital.lat]);
+
+        if (p) {
+
+          star = `
+            <text
+              x="${p[0]}"
+              y="${p[1] + 5}"
+              text-anchor="middle"
+              font-size="16"
+              fill="#ffd700">
+              ★
+            </text>
+          `;
+
+        }
+
+      }
+
+    } else {
+
+      answerText = country.name;
+
+    }
 
     iconHTML = `
-      <svg width="80" height="80" viewBox="0 0 80 80">
+      <svg
+        width="140"
+        height="140"
+        viewBox="0 0 140 140">
+
         <path
-        d="${miniPath(country)}"
-        fill="none"
-        stroke="white"
-        stroke-width="2"/>
+          d="${reviewPath(country)}"
+          fill="none"
+          stroke="white"
+          stroke-width="2"/>
+
+        ${star}
+
       </svg>
     `;
   }
+
+  const yourGuess = result.guess ?? guessesByCountry.get(key) ?? "";
 
   elements.history.innerHTML = `
     <h3>Review</h3>
@@ -469,25 +610,37 @@ function showReviewCountry(country) {
       </div>
 
       <div class="review-info">
+
         <div>
-          <strong>Answer:</strong>
+          <strong>Country:</strong><br>
           ${country.name}
         </div>
 
         <div>
-          <strong>Your guess:</strong>
-          ${guessesByCountry.get(key)}
+          <strong>Your guess:</strong><br>
+          ${yourGuess}
         </div>
+
+        <div>
+          <strong>${
+            gameType === "capital"
+              ? "Correct capital"
+              : "Answer"
+          }:</strong><br>
+          ${answerText}
+        </div>
+
       </div>
 
-      <div class="review-result ${result}">
-        ${result === "correct" ? "✓ Correct" : "✗ Wrong"}
+      <div class="review-result ${result.status}">
+        ${result.status === "correct"
+          ? "✓ Correct"
+          : "✗ Wrong"}
       </div>
 
     </div>
   `;
 }
-
 function findGuessForCountry(country) {
   const entries = [...elements.history.children];
 
@@ -511,21 +664,51 @@ function handleSubmit() {
     return;
   }
 
-  const guessedCorrectly = isCorrectGuess(guess, currentTarget.normalizedName);
+  
+
+  let guessedCorrectly;
+  if (gameType === "capital") {
+      guessedCorrectly =
+          guess === capitalKey(currentTarget);
+  } else {
+      guessedCorrectly =
+          isCorrectGuess(
+              guess,
+              currentTarget.normalizedName
+          );
+  }
 
   if (guessedCorrectly) {
     correctCount += 1;
     streakCount += 1;
-    elements.feedbackText.textContent = `Right. It was ${currentTarget.name}.`;
+  if (gameType === "capital") {
+      elements.feedbackText.textContent =
+          `Right. The capital is ${CAPITALS[currentTarget.normalizedName].name}.`;
+  } else {
+      elements.feedbackText.textContent =
+          `Right. It was ${currentTarget.name}.`;
+  }
     elements.feedbackText.className = "feedback feedback-good";
   } else {
     streakCount = 0;
     wrongCount += 1;
-    elements.feedbackText.textContent = `Wrong. It was ${currentTarget.name}.`;
+  if (gameType === "capital") {
+      elements.feedbackText.textContent =
+          `Wrong. The capital is ${CAPITALS[currentTarget.normalizedName].name}.`;
+  } else {
+      elements.feedbackText.textContent =
+          `Wrong. It was ${currentTarget.name}.`;
+  }
     elements.feedbackText.className = "feedback feedback-bad";
   }
 
-  resultByCountry.set(countryKey(currentTarget), guessedCorrectly ? "correct" : "wrong");
+  resultByCountry.set(
+      countryKey(currentTarget),
+      {
+          status: guessedCorrectly ? "correct" : "wrong",
+          guess: elements.guessInput.value.trim()
+      }
+  );
   guessesByCountry.set(
     countryKey(currentTarget),
     elements.guessInput.value.trim()
@@ -566,75 +749,79 @@ function updateHud() {
   elements.wrongLabel.textContent = String(wrongCount);
 }
 function addHistory(guess, country, correct) {
-
     const row = document.createElement("div");
-
     row.className =
         "history-entry " + (correct ? "correct" : "wrong");
-
-
     let iconHTML;
-
-
+    let answer;
     if (gameType === "flag") {
-
         const code = FLAG_CODES[country.normalizedName];
-
         iconHTML = `
           <img
             class="history-flag"
             src="https://flagcdn.com/w160/${code}.png">
         `;
-
+        answer = country.name;
     } else {
-
         const miniProjection = d3
             .geoMercator()
             .fitSize([40,40], country);
-
         const miniPath = d3.geoPath(miniProjection);
-
-
+        let star = "";
+        if (gameType === "capital") {
+            const capital = CAPITALS[country.normalizedName];
+            if (capital) {
+                const p = miniProjection([capital.lon, capital.lat]);
+                if (p) {
+                    star = `
+                        <text
+                            x="${p[0]}"
+                            y="${p[1] + 3}"
+                            text-anchor="middle"
+                            font-size="8"
+                            fill="#ffd700">★</text>
+                    `;
+                }
+                answer = capital.name;
+            } else {
+                answer = "Unknown";
+            }
+        } else {
+            answer = country.name;
+        }
         iconHTML = `
         <svg
           class="history-icon"
           width="40"
           height="40"
           viewBox="0 0 40 40">
-
           <path
             d="${miniPath(country)}"
             fill="none"
             stroke="white"
             stroke-width="1.2"/>
-
+          ${star}
         </svg>
         `;
     }
-
-
     row.innerHTML = `
-
         ${iconHTML}
 
         <div class="history-text">
             <div><strong>Guess:</strong> ${guess}</div>
-            <div><strong>Answer:</strong> ${country.name}</div>
+            <div><strong>Answer:</strong> ${answer}</div>
         </div>
 
         <div class="history-result">
             ${correct ? "✓" : "✗"}
         </div>
-
     `;
-
-
     elements.history.prepend(row);
-
 }
+
 function drawGlobe(resultState = "neutral") {
 
-  if (gameType === "flag" && !reviewMode ) {
+  if (gameType !== "country" && !reviewMode ) {
     return;
   } 
 
@@ -653,7 +840,8 @@ function drawGlobe(resultState = "neutral") {
     .join((enter) => enter.append("path").attr("class", "globe-country"))
     .attr("d", path)
     .attr("fill", (d) => {
-      const status = resultByCountry.get(countryKey(d));
+      const result = resultByCountry.get(countryKey(d));
+      const status = result?.status;
       if (status === "correct") {
         return "#2563eb";
       }
@@ -666,14 +854,16 @@ function drawGlobe(resultState = "neutral") {
       return baseFill;
     })
     .attr("stroke", (d) => {
-      const status = resultByCountry.get(countryKey(d));
+      const result = resultByCountry.get(countryKey(d));
+      const status = result?.status;
       if (status === "correct" || status === "wrong" || (currentTarget && countryKey(d) === countryKey(currentTarget))) {
         return "#ffffff";
       }
       return "#6b7280";
     })
     .attr("stroke-width", (d) => {
-      const status = resultByCountry.get(countryKey(d));
+      const result = resultByCountry.get(countryKey(d));
+      const status = result?.status;
       return status === "correct" || status === "wrong" || (currentTarget && countryKey(d) === countryKey(currentTarget)) ? 1.4 : 0.8;
     })
     .attr("opacity", (d) => (resultByCountry.has(countryKey(d)) || (currentTarget && countryKey(d) === countryKey(currentTarget)) ? 1 : 0.92));
@@ -731,6 +921,11 @@ function normalizeName(value) {
     .replace(/[^a-z0-9]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function capitalKey(country) {
+  const capital = CAPITALS[country.normalizedName];
+  return capital ? normalizeName(capital.name) : "";
 }
 
 function isCorrectGuess(guess, normalizedTarget) {
