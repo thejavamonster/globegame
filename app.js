@@ -92,6 +92,15 @@ const aliasMap = new Map([
   ["timor-leste", "east timor"]
 ]);
 
+const capitalAliasMap = new Map([
+  ["washington", "washington, d.c."],
+  ["dc", "washington, d.c."],
+  ["washington dc", "washington, d.c."],
+  ["washington, dc", "washington, d.c."],
+  ["ottawa", "ottawa-gatineau"],
+  ["hanoi", "ha noi"]
+]);
+
 function countryKey(country) {
   return String(country.id ?? country.properties?.name ?? country.name);
 }
@@ -668,8 +677,10 @@ function handleSubmit() {
 
   let guessedCorrectly;
   if (gameType === "capital") {
-      guessedCorrectly =
-          guess === capitalKey(currentTarget);
+      guessedCorrectly = isCorrectCapitalGuess(
+          elements.guessInput.value,
+          currentTarget
+      );
   } else {
       guessedCorrectly =
           isCorrectGuess(
@@ -923,9 +934,16 @@ function normalizeName(value) {
     .trim();
 }
 
+function normalizeCapital(name) {
+  const normalized = normalizeName(name);
+
+  const alias = capitalAliasMap.get(normalized);
+
+  return alias ? normalizeName(alias) : normalized;
+}
 function capitalKey(country) {
   const capital = CAPITALS[country.normalizedName];
-  return capital ? normalizeName(capital.name) : "";
+  return capital ? capital.name : "";
 }
 
 function isCorrectGuess(guess, normalizedTarget) {
@@ -941,6 +959,13 @@ function isCorrectGuess(guess, normalizedTarget) {
   const collapsedGuess = mappedGuess.replace(/\b(the|republic|democratic|people s|peoples|state|states|federation|of)\b/g, "").replace(/\s+/g, " ").trim();
   const collapsedTarget = normalizedTarget.replace(/\b(the|republic|democratic|people s|peoples|state|states|federation|of)\b/g, "").replace(/\s+/g, " ").trim();
   return collapsedGuess === collapsedTarget;
+}
+
+function isCorrectCapitalGuess(guess, country) {
+  return (
+    normalizeCapital(guess) ===
+    normalizeCapital(capitalKey(country))
+  );
 }
 
 
