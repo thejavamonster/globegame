@@ -136,8 +136,14 @@ function fitGlobe() {
   }
 
   const bounds = frame.getBoundingClientRect();
+  console.log(bounds.width, bounds.height);
   const size = Math.max(260, Math.min(bounds.width, bounds.height));
-  currentScale = Math.max(200, size * 0.46);
+  const mobile = matchMedia("(max-width: 700px)").matches;
+  currentScale = Math.max(
+      200,
+      size * (mobile ? 0.70 : 0.46)
+  );
+
   projection.scale(currentScale).translate([width / 2, height / 2]);
   drawGlobe();
 }
@@ -204,10 +210,20 @@ async function init() {
     roundOrder = buildRoundOrder();
     updateHud();
     startRound();
+    requestAnimationFrame(() => {
+        fitGlobe();
+    });
+
+    setTimeout(() => {
+        fitGlobe();
+    }, 100);
   } catch (error) {
     console.error(error);
   }
 }
+
+window.addEventListener("resize", fitGlobe);
+window.addEventListener("orientationchange", fitGlobe);
 
 function buildScene() {
   elements.globe.innerHTML = "";
@@ -267,6 +283,34 @@ function wireControls() {
   elements.reviewButton.addEventListener("click", () => {
     elements.reviewModal.classList.add("hidden");
     enterReviewMode();
+  });
+  const historyPanel = document.querySelector(".history-panel");
+  const historyToggle = document.getElementById("historyToggle");
+
+  historyToggle.addEventListener("click", () => {
+
+      const open = historyPanel.classList.toggle("open");
+
+      historyToggle.textContent = open ? "❮" : "❯";
+
+  });
+
+  document.addEventListener("click", e=>{
+
+      if(window.innerWidth>700) return;
+
+      if(
+          historyPanel.classList.contains("open") &&
+          !historyPanel.contains(e.target) &&
+          e.target!==historyToggle
+      ){
+
+          historyPanel.classList.remove("open");
+
+          historyToggle.textContent="❯";
+
+      }
+
   });
 }
 
