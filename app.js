@@ -54,6 +54,9 @@ let reviewMode = false;
 let reviewSelectedCountry = null;
 let guessesByCountry = new Map();
 let COUNTRY_TO_REGIONS = new Map();
+let activePointers = new Map();
+let pinchStartDistance = null;
+let pinchStartScale = null;
 
 const aliasMap = new Map([
   ["united states of america", "USA"],
@@ -394,32 +397,57 @@ function showCapital(country) {
 
 function setupGlobeInteractions() {
   d3.select(elements.globe)
+    .style("touch-action", "none") // Prevent browser pinch zoom
+
     .on("wheel", (event) => {
       event.preventDefault();
-      const nextScale = Math.max(200, Math.min(720, currentScale * (event.deltaY > 0 ? 0.92 : 1.08)));
-      currentScale = nextScale;
+
+      currentScale = Math.max(
+        200,
+        Math.min(
+          720,
+          currentScale * (event.deltaY > 0 ? 0.92 : 1.08)
+        )
+      );
+
       projection.scale(currentScale);
       drawGlobe();
     })
+
     .on("pointerdown", (event) => {
-      isDragging = true;
-      dragStart = [event.clientX, event.clientY];
-      dragStartRotation = projection.rotate();
+      activePointers.set(event.pointerId, {
+        x: event.clientX,
+        y: event.clientY,
+      });
+
+      if (activePointers.size === 2) {
+        const points = [...activePointers.values()];
+
+        pinchStartDistance = Math.hypot(
+          points[0].x - points[1].x,
+          points[0].y - points[1].y
+        );
+
+        pinchStartScale = currentScale;
+
+        isDragging = false;
+      } else {
+        isDragging = true;
+        dragStart = [event.clientX, event.clientY];
+        dragStartRotation = projection.rotate();
+      }
+
       event.currentTarget.setPointerCapture?.(event.pointerId);
       event.preventDefault();
     })
+
     .on("click", (event) => {
-      if (!reviewMode) {
-        return;
-      }
+      if (!reviewMode) return;
 
       const [x, y] = d3.pointer(event, elements.globe);
-
       const coordinates = projection.invert([x, y]);
 
-      if (!coordinates) {
-        return;
-      }
+      if (!coordinates) return;
 
       const clickedCountry = countries.find(country =>
         d3.geoContains(country, coordinates)
@@ -429,16 +457,50 @@ function setupGlobeInteractions() {
         showReviewCountry(clickedCountry);
       }
     })
+
     .on("pointermove", (event) => {
+      if (activePointers.has(event.pointerId)) {
+        activePointers.set(event.pointerId, {
+          x: event.clientX,
+          y: event.clientY,
+        });
+      }
+
+      // ----- Pinch Zoom -----
+      if (activePointers.size === 2) {
+        const points = [...activePointers.values()];
+
+        const currentDistance = Math.hypot(
+          points[0].x - points[1].x,
+          points[0].y - points[1].y
+        );
+
+        const zoomFactor = currentDistance / pinchStartDistance;
+
+        currentScale = Math.max(
+          200,
+          Math.min(720, pinchStartScale * zoomFactor)
+        );
+
+        projection.scale(currentScale);
+        drawGlobe();
+        return;
+      }
+
+      // ----- Drag Rotate -----
       if (!isDragging || !dragStart || !dragStartRotation) {
         return;
       }
 
       const dx = event.clientX - dragStart[0];
       const dy = event.clientY - dragStart[1];
+
       const nextRotation = [
         dragStartRotation[0] + dx * 0.25,
-        Math.max(-90, Math.min(90, dragStartRotation[1] - dy * 0.22)),
+        Math.max(
+          -90,
+          Math.min(90, dragStartRotation[1] - dy * 0.22)
+        ),
         0,
       ];
 
@@ -446,14 +508,22 @@ function setupGlobeInteractions() {
       projection.rotate(currentRotation);
       drawGlobe();
     })
-    .on("pointerup pointercancel pointerleave", (event) => {
+
+    .on("pointerup pointercancel", (event) => {
+      activePointers.delete(event.pointerId);
+
+      if (activePointers.size < 2) {
+        pinchStartDistance = null;
+        pinchStartScale = null;
+      }
+
       isDragging = false;
       dragStart = null;
       dragStartRotation = null;
+
       event.currentTarget.releasePointerCapture?.(event.pointerId);
     });
 }
-
 function restartGame() {
   window.clearTimeout(feedbackTimer);
   currentRoundIndex = 0;
